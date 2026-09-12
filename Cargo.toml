@@ -1,0 +1,19 @@
+[package]
+name = "adamantium-files"
+version = "0.1.0"
+edition = "2024"
+description = "File operations and a standalone WASI command for the future Adamantium package runtime"
+repository = "https://github.com/AdamantiumORG/AdamantiumFiles"
+publish = false
+
+[lib]
+name = "adamantium_files"
+
+[[bin]]
+name = "adamantium-files"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true

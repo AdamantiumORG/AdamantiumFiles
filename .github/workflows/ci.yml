@@ -1,0 +1,48 @@
+name: Test AdamantiumFiles
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+          targets: wasm32-wasip1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Lint
+        run: cargo clippy --locked --all-targets -- -D warnings
+      - name: Test native filesystem operations
+        run: cargo test --locked
+      - name: Build WASI package
+        run: cargo build --locked --release --target wasm32-wasip1 --bin adamantium-files
+      - name: Validate and execute WASM filesystem tests
+        run: node tests/wasi.mjs
+      - name: Prepare package asset
+        if: matrix.os == 'ubuntu-latest'
+        run: cp target/wasm32-wasip1/release/adamantium-files.wasm adamantium_packet.wasm
+      - name: Upload tested package
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: adamantium-files-wasi
+          path: adamantium_packet.wasm
+          if-no-files-found: error
