@@ -13,14 +13,12 @@ support downloading WASM assets, but do not implement package execution,
 bindings, or a package ABI. There is no working `.ad` import example to provide.
 The Rust library API below is not a proposed stable Adamantium ABI.
 
-Two compiler changes are needed for integration:
+The compiler accepts this repository and can install its published release.
+The remaining compiler changes needed for execution are:
 
 1. Package execution and bindings, including a filesystem host interface.
-2. Installer support for `https://github.com/AdamantiumORG/AdamantiumFiles`.
-   The current installer only accepts repositories under `AdmerPRO` and rejects
-   this repository's actual organization before downloading anything.
-
-The compiler was treated as read-only. No compiler changes are included here.
+2. A package ABI that defines how Adamantium code passes paths, byte buffers,
+   strings, results, and filesystem errors to a WASM package.
 
 The package guide demonstrates `wasm32-unknown-unknown`, which does not provide
 host filesystem access. This package deliberately uses **`wasm32-wasip1`**,
@@ -121,21 +119,35 @@ Fixtures are isolated below `target` and removed after tests.
 on Linux, Windows, and macOS. It runs the checks above and uploads the tested
 Linux-built WASM as an artifact named `adamantium-files-wasi`, containing
 `adamantium_packet.wasm`. Download and extract the artifact to obtain the WASM;
-the ZIP itself is not an installable package. CI does not publish a release.
+the ZIP itself is not an installable package.
 
-## Future distribution
+When a tag matching `adamantium_packet_*` is pushed, the workflow waits for all
+three test jobs, verifies that the tag matches the version in `Cargo.toml`,
+downloads the tested Linux artifact, validates its WASM header, and publishes a
+GitHub Release containing exactly `adamantium_packet.wasm`.
 
-The compiler guide requires a release tag `adamantium_packet_0_1_0` and an asset
-named exactly `adamantium_packet.wasm`. Rename the tested WASM when preparing
-a release. Do not upload a native executable or the GitHub artifact ZIP.
+## Distribution
 
-Once the installer accepts this organization, the consumer declaration will be:
+Version `0.1.0` is published under tag `adamantium_packet_0_1_0` with an asset
+named exactly `adamantium_packet.wasm`. Install it from an Adamantium project
+with:
 
 ```toml
 [packages]
 "https://github.com/AdamantiumORG/AdamantiumFiles" = "0.1.0"
 ```
 
-This declaration is currently rejected. No release has been published by this
-implementation, and installing a future release will still require runtime
-support before Adamantium code can use its file operations.
+```text
+adamantium install
+```
+
+For a new version, update `Cargo.toml` and push the matching tag. For example,
+version `0.2.0` must use:
+
+```text
+git tag adamantium_packet_0_2_0
+git push Github adamantium_packet_0_2_0
+```
+
+Installation works today. Calling the installed package from Adamantium code
+will require runtime and ABI support in the compiler.
