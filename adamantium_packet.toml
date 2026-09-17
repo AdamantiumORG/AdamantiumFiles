@@ -1,0 +1,65 @@
+[package]
+name = "AdamantiumFiles"
+version = "0.1.0"
+abi = "wasi-command-v1"
+description = "Cross-platform file and directory operations for Adamantium"
+authors = ["AdamantiumORG"]
+license = "GPL-3.0-or-later"
+repository = "https://github.com/AdamantiumORG/AdamantiumFiles"
+
+[permissions]
+filesystem = "read-write"
+
+[functions.open]
+parameters = ["string", "string"]
+result = "None"
+
+[functions.read]
+parameters = ["string"]
+result = "string"
+
+[functions.write]
+parameters = ["string", "string"]
+result = "None"
+
+[functions.append]
+parameters = ["string", "string"]
+result = "None"
+
+[functions.create]
+parameters = ["string"]
+result = "None"
+
+[functions.remove]
+parameters = ["string"]
+result = "None"
+
+[functions.exists]
+parameters = ["string"]
+result = "bool"
+
+[functions.file_exists]
+parameters = ["string"]
+result = "bool"
+command = "file-exists"
+
+[functions.mkdir]
+parameters = ["string"]
+result = "None"
+
+[functions.rmdir]
+parameters = ["string"]
+result = "None"
+
+[functions.dir_exists]
+parameters = ["string"]
+result = "bool"
+command = "dir-exists"
+
+[functions.list]
+parameters = ["string"]
+result = "string"
+
+[functions.metadata]
+parameters = ["string"]
+result = "string"

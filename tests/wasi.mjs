@@ -22,8 +22,18 @@ function run(args, code = 0) {
 try {
   assert.match(run(['--help']), /Usage:/);
   assert.equal(run(['exists', '/workspace/missing']).trim(), 'false');
+  assert.equal(run(['file-exists', '/workspace/missing']).trim(), 'false');
+  assert.equal(run(['dir-exists', '/workspace/missing']).trim(), 'false');
   run(['mkdir', '/workspace/a/nested']);
   run(['mkdir', '/workspace/a/nested']);
+  assert.equal(run(['dir-exists', '/workspace/a']).trim(), 'true');
+  run(['create', '/workspace/a/preserved']);
+  run(['write', '/workspace/a/preserved', 'keep']);
+  run(['create', '/workspace/a/preserved']);
+  assert.equal(run(['read', '/workspace/a/preserved']), 'keep');
+  run(['open', '/workspace/a/preserved', 'read']);
+  assert.equal(run(['file-exists', '/workspace/a/preserved']).trim(), 'true');
+  assert.match(run(['metadata', '/workspace/a/preserved']), /^file\|4\|(true|false)\|(None|\d+)\n$/);
   run(['append', '/workspace/a/new', 'created']);
   assert.equal(run(['read', '/workspace/a/new']), 'created');
   run(['remove', '/workspace/a/new']);
@@ -56,6 +66,7 @@ try {
   run(['unknown'], 2);
   run(['read'], 2);
   run(['rmdir', '/workspace/a/nested']);
+  run(['remove', '/workspace/a/preserved']);
   run(['remove', '/workspace/a/hello ą.txt']);
   run(['rmdir', '/workspace/a']);
   writeFileSync(join(root, 'binary'), Buffer.from([0, 255, 128, 10]));

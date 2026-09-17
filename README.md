@@ -5,20 +5,13 @@ It has no external Rust dependencies and provides a tested Rust library and
 a native/WASI command for reading, writing, appending, copying, renaming,
 deleting, checking existence, and creating/listing/removing directories.
 
-## Adamantium integration status
+## Adamantium integration
 
-**This package cannot currently be called from Adamantium code.** The supplied
-compiler's `docs/CREATING_PACKAGES.md`, README, and installer implementation
-support downloading WASM assets, but do not implement package execution,
-bindings, or a package ABI. There is no working `.ad` import example to provide.
-The Rust library API below is not a proposed stable Adamantium ABI.
-
-The compiler accepts this repository and can install its published release.
-The remaining compiler changes needed for execution are:
-
-1. Package execution and bindings, including a filesystem host interface.
-2. A package ABI that defines how Adamantium code passes paths, byte buffers,
-   strings, results, and filesystem errors to a WASM package.
+`adamantium_packet.toml` exposes the commands through the `wasi-command-v1`
+ABI. Install the package, declare `mod AdamantiumFiles;`, and import functions
+with `use AdamantiumFiles:[read,write];`. Failures exit with code 1 and write
+`filesystem_error:CODE:COMMAND: PATH: MESSAGE` to stderr, so Adamantium `try`
+can handle them as package errors.
 
 The package guide demonstrates `wasm32-unknown-unknown`, which does not provide
 host filesystem access. This package deliberately uses **`wasm32-wasip1`**,
@@ -54,17 +47,23 @@ and `list` prints entry names one per line. Mutations produce no stdout.
 
 | Function | Behavior |
 | --- | --- |
+| `open(path, mode)` | Open and close using `read`, `write`, `append`, or `read-write` |
+| `create_file(path)` | Create a missing file without truncating existing contents |
 | `read(path)` | Read the complete file as bytes |
 | `read_text(path)` | Read UTF-8 text; reject invalid encoding |
 | `write(path, contents)` | Create or truncate a file |
 | `append(path, contents)` | Append bytes; create a missing file |
 | `exists(path)` | Check a file or directory; preserve access errors |
+| `file_exists(path)` | Check whether a path resolves to a regular file |
+| `dir_exists(path)` | Check whether a path resolves to a directory |
 | `copy(source, destination)` | Copy bytes and permissions, replacing destination; return byte count |
 | `rename(source, destination)` | Rename using host OS behavior |
 | `remove_file(path)` | Delete a file |
 | `create_dir(path)` | Create a directory and missing parents |
 | `remove_dir(path)` | Delete an empty directory |
 | `list_dir(path)` | Return sorted immediate entry names as `PathBuf` values |
+| `metadata(path)` | Return portable kind, length, readonly, and modification fields |
+| `error_code(error)` | Map an I/O error to a stable package error category |
 
 Functions return `std::io::Result`, preserving filesystem errors rather than
 panicking. Files are closed when each operation returns. Reading loads the whole
@@ -79,6 +78,18 @@ restriction on native callers. The CLI's `list` output is for humans: non-UTF-8
 names are displayed lossily and embedded newlines are not escaped. Use the Rust
 API when exact native filenames are needed. Recursive deletion, open-handle
 APIs, metadata queries, and Adamantium bindings are outside this initial scope.
+
+## Cross-platform contract
+
+- Relative paths resolve inside the directory preopened by the WASI runtime.
+- Use `/` separators in Adamantium package calls.
+- `write` truncates, `append` never truncates, and `create` preserves existing contents.
+- `list` is nonrecursive, sorted, and returns one entry per line.
+- `rmdir` removes only empty directories to prevent accidental tree deletion.
+- Existence checks follow symlinks. Metadata identifies the symlink itself.
+- Metadata modification time may be `None` when the host cannot provide it.
+- Rename replacement behavior varies by host. Use a missing destination for portable behavior.
+- Native reads preserve arbitrary bytes. Adamantium string results require UTF-8 data.
 
 ## Build and run WASM
 
@@ -117,14 +128,13 @@ Fixtures are isolated below `target` and removed after tests.
 
 `.github/workflows/ci.yml` runs on pushes, pull requests, and manual dispatches
 on Linux, Windows, and macOS. It runs the checks above and uploads the tested
-Linux-built WASM as an artifact named `adamantium-files-wasi`, containing
-`adamantium_packet.wasm`. Download and extract the artifact to obtain the WASM;
-the ZIP itself is not an installable package.
+Linux-built package as an artifact named `adamantium-files-wasi`. It contains
+the WASM module, manifest, `SHA256SUMS`, and release metadata JSON.
 
 When a tag matching `adamantium_packet_*` is pushed, the workflow waits for all
 three test jobs, verifies that the tag matches the version in `Cargo.toml`,
 downloads the tested Linux artifact, validates its WASM header, and publishes a
-GitHub Release containing exactly `adamantium_packet.wasm`.
+GitHub Release containing all four validated package assets.
 
 ## Distribution
 

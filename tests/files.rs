@@ -108,6 +108,59 @@ fn errors_are_preserved_and_parents_are_not_implicitly_created_by_write() {
 }
 
 #[test]
+fn explicit_open_modes_and_creation_have_stable_semantics() {
+    let root = Workspace::new();
+    let path = root.0.join("opened.txt");
+    files::create_file(&path).unwrap();
+    files::write(&path, "keep").unwrap();
+    drop(files::open(&path, files::OpenMode::Read).unwrap());
+    drop(files::open(&path, files::OpenMode::ReadWrite).unwrap());
+    assert_eq!(files::read_text(&path).unwrap(), "keep");
+    files::create_file(&path).unwrap();
+    assert_eq!(files::read_text(&path).unwrap(), "keep");
+    drop(files::open(&path, files::OpenMode::Write).unwrap());
+    assert!(files::read(&path).unwrap().is_empty());
+    drop(files::open(&path, files::OpenMode::Append).unwrap());
+}
+
+#[test]
+fn distinguishes_files_and_directories_and_reports_portable_metadata() {
+    let root = Workspace::new();
+    let file = root.0.join("data.bin");
+    files::write(&file, [1, 2, 3]).unwrap();
+    assert!(files::file_exists(&file).unwrap());
+    assert!(!files::dir_exists(&file).unwrap());
+    assert!(files::dir_exists(&root.0).unwrap());
+    assert!(!files::file_exists(&root.0).unwrap());
+    assert!(!files::file_exists(root.0.join("missing")).unwrap());
+    let metadata = files::metadata(&file).unwrap();
+    assert_eq!(metadata.kind, files::EntryKind::File);
+    assert_eq!(metadata.length, 3);
+    assert_eq!(
+        files::metadata(&root.0).unwrap().kind,
+        files::EntryKind::Directory
+    );
+}
+
+#[test]
+fn errors_have_stable_abi_categories() {
+    let root = Workspace::new();
+    let error = files::read(root.0.join("missing")).unwrap_err();
+    assert_eq!(files::error_code(&error), "not_found");
+    let output = Command::new(env!("CARGO_BIN_EXE_adamantium-files"))
+        .arg("metadata")
+        .arg(root.0.join("missing"))
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(1));
+    assert!(
+        String::from_utf8(output.stderr)
+            .unwrap()
+            .starts_with("filesystem_error:not_found:")
+    );
+}
+
+#[test]
 fn cli_validates_arguments_before_modifying_files_and_reports_io_errors() {
     let root = Workspace::new();
     let path = root.0.join("file");
