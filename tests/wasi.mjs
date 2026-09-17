@@ -52,7 +52,7 @@ try {
     assert.equal(result.status, 1);
     assert.match(result.stderr, /Function not implemented/);
   } else {
-    assert.equal(run(['list', '/workspace/a']), 'hello ą.txt\nnested\n');
+    assert.equal(run(['list', '/workspace/a']), 'hello ą.txt\nnested\npreserved\n');
   }
   run(['rmdir', '/workspace/a'], 1);
   run(['remove', '/workspace/a'], 1);
